@@ -190,6 +190,96 @@ When useful, inspect recommended hyperparameters before launching a run.
 Do not invent a generic "method" or alignment mode that is not exposed
 by the current API.
 
+### Iterations and early stopping
+
+Treat `target_win_rate` as an early-stop threshold, not as an optimization
+objective. Raising it allows AutoScientist to continue searching through
+more of the permitted iterations; it does not instruct the optimizer to
+"try harder" or guarantee that win rate.
+
+Verify the current documented `max_iterations` range and target-win-rate
+semantics before launching. For an explicitly authorized leaderboard or
+maximum-search run where additional iteration cost is acceptable, a high
+early-stop threshold such as `0.95` together with the currently supported
+maximum iteration count may be appropriate. Do not silently choose that
+more expensive search configuration for ordinary runs.
+
+Do not assume the final iteration is the best iteration. Use the current
+documented best-result and checkpoint semantics.
+
+### AutoScientist experimental integrity
+
+For comparative, research, or leaderboard-oriented work, preserve enough
+provenance to reconstruct exactly what was launched.
+
+Record at submission time, when applicable:
+
+- dataset ID and observed row count
+- dataset processing/adaptation state
+- model or automatic-model-selection choice
+- `max_iterations`
+- `target_win_rate`
+- training type
+- domain and general augmentation row counts
+- explicit hyperparameter overrides
+- column mapping
+- idempotency key
+- returned run/experiment ID
+- timestamp and human-readable experiment label
+
+Do not infer a launch condition later when the original request can be
+recorded at submission time.
+
+When testing a change:
+
+- prefer paired comparisons on the same underlying dataset/seed
+- change one material experimental variable at a time when practical
+- keep search budgets and iteration counts comparable
+- replicate important results when budget permits
+- retain failed, cancelled, and incomplete runs in the experiment record
+- distinguish exploratory evidence from replicated evidence
+
+Do not draw a strong conclusion from one noisy run when a paired or
+replicated comparison is practical.
+
+### Metric separation
+
+Do not treat these as interchangeable signals:
+
+- Adaptive Data quality evaluation
+- dataset semantic/category classification shown by the application
+- AutoScientist on-dataset or best win rate
+- held-out category/domain evaluation
+- leaderboard normalized score
+
+Before optimizing a metric, verify what population and evaluation it
+actually measures. A higher on-dataset win rate does not by itself prove
+better held-out category performance or a better leaderboard score.
+
+### Unofficial or empirically observed behavior
+
+Community clients and reverse-engineered endpoints can reveal useful
+platform behavior, but they are evidence to verify rather than supported
+API contracts.
+
+Prefer the official SDK and documented REST API whenever they provide the
+required capability.
+
+If an unofficial/internal endpoint is necessary:
+
+- isolate that use from the normal supported client path
+- verify the live response shape before relying on it
+- do not hard-code undocumented limits or statuses as permanent rules
+- verify that a returned job/run is actually new before attributing it to
+  an experimental condition
+- record launch conditions locally because internal job records may not
+  preserve every experimental parameter
+- fail closed when attribution is ambiguous
+
+Historical observations such as row-count floors, concurrency caps,
+additional internal statuses, or stale-job behavior should be re-verified
+against current platform behavior before they influence automation.
+
 ## Long-running operations
 
 Treat dataset processing, adaptation, and training as asynchronous when
@@ -198,13 +288,14 @@ documented.
 A robust integration should:
 
 1. store returned dataset/run/experiment IDs
-2. monitor status
-3. recognize successful terminal states
-4. recognize failure/cancellation states
-5. expose useful error details
-6. support reasonable timeout behavior
-7. avoid duplicate creation when execution is retried
-8. support resume behavior when appropriate for the host application
+2. store the launch configuration needed for later attribution
+3. monitor status
+4. recognize successful terminal states
+5. recognize failure/cancellation states
+6. expose useful error details
+7. support reasonable timeout behavior
+8. avoid duplicate creation when execution is retried
+9. support resume behavior when appropriate for the host application
 
 Use documented idempotency support for retryable creation operations
 where available.
