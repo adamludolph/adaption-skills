@@ -332,12 +332,17 @@ provenance to reconstruct exactly what was launched.
 
 Record at submission time, when applicable:
 
+- SDK/package version or REST API path used
 - dataset ID, requested row count when relevant, and observed row count
 - dataset origin and processing/adaptation state
+- invented/adapted dataset training format when relevant, such as
+  `instruction_dataset` versus `preference_pairs`
 - model or automatic-model-selection choice
+- AutoScientist `data_format` when explicitly set
 - `max_iterations`
 - `target_win_rate`
-- training type
+- AutoScientist training strategy/type when explicitly set, such as
+  `lora` versus `full`
 - domain and general augmentation row counts
 - explicit hyperparameter overrides
 - column mapping
@@ -431,8 +436,9 @@ influence automation.
 
 ## Long-running operations
 
-Treat dataset processing, adaptation, and training as asynchronous when
-documented.
+Treat dataset processing, adaptation, evaluation, and training as
+asynchronous when documented. Do not assume that a completed adaptation
+means its separate quality evaluation is already complete.
 
 A robust integration should:
 
@@ -447,7 +453,9 @@ A robust integration should:
 9. support resume behavior when appropriate for the host application
 
 Use documented idempotency support for retryable creation operations
-where available.
+where available. Verify each endpoint's idempotency scope and lifetime;
+do not assume that a key permanently deduplicates requests after a
+resource reaches a terminal state.
 
 ## Cost and remote execution
 
