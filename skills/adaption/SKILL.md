@@ -29,6 +29,11 @@ https://docs.adaptionlabs.ai/
 - Verify exact API behavior against the current official documentation.
 - Treat current official documentation as authoritative over examples
   contained in this skill.
+- If current official documentation disagrees internally, do not silently
+  choose a value. Prefer the endpoint-specific API reference for schema
+  constraints, then verify against the installed SDK or live validation
+  when the difference is consequential. Report the conflict and the
+  evidence used.
 - Never invent API methods, request fields, response fields, status
   values, model identifiers, or training modes.
 
@@ -186,6 +191,29 @@ When the prompt alone is sufficient, do not add domains merely to make
 the request look more explicit. When domains or subdomains matter to the
 task, use only current codes returned by the API.
 
+### Row counts and surface-state mismatches
+
+Keep source/requested counts separate from the API's completed
+`row_count`. Processing, filtering, deduplication, partial completion,
+or other platform behavior can make them differ.
+
+When a minimum-row error appears to contradict the source file's row
+count:
+
+- inspect the dataset's current processing state
+- inspect the completed API `row_count`
+- check whether processing or deduplication reduced usable rows
+- verify the current minimum-row requirement
+- do not immediately classify the problem as a UI bug
+- do not pad or mutate the dataset merely to bypass the error until the
+  actual counted population is known
+
+Also distinguish backend resource state from UI and export visibility.
+A dataset that exists or trains successfully through the API does not by
+itself prove that every UI, preview, Hugging Face export, or other
+surface has synchronized. Report those states separately and use the
+relevant API resource state for API decisions.
+
 ## Column mappings
 
 Validate mappings against the appropriate schema.
@@ -255,6 +283,48 @@ more expensive search configuration for ordinary runs.
 Do not assume the final iteration is the best iteration. Use the current
 documented best-result and checkpoint semantics.
 
+### Evaluation and iteration failure diagnostics
+
+Separate the top-level AutoScientist run state from iteration-level,
+UI-only, internal, or community-client statuses. In particular, do not
+automatically equate an observed `eval_failed` iteration with failed
+training or a failed top-level run unless the current API evidence shows
+that relationship.
+
+For an evaluation failure:
+
+1. capture the run ID and iteration ID when available
+2. record whether training itself completed
+3. record the top-level run status and iteration status separately
+4. capture any error/error-message field exactly, including null
+5. preserve timestamps and the dataset ID
+6. inspect whether a later permitted iteration recovered before deciding
+   that the entire run must be relaunched
+7. verify whether the current API exposes an evaluation-only retry before
+   paying to repeat training or augmentation
+
+More permitted iterations can sometimes provide another chance for an
+intermittent evaluation to succeed, but that is a resilience possibility,
+not a fix for the underlying failure and not evidence that more iterations
+improve model quality. Extra iterations consume time and potentially
+credits.
+
+The AutoScientist loop explicitly revises the training recipe between
+iterations. Later iterations can therefore be worse than earlier ones.
+Compare per-iteration results when they are available, preserve the best
+iteration semantics, and never describe a later regression as evidence
+that the retained best checkpoint also regressed without verifying it.
+
+When one dataset repeatedly fails evaluation while comparable datasets
+do not, form narrow, testable hypotheses about dataset properties such as
+prompt length, target length, format, or other observable differences.
+Change one suspected factor at a time when practical. Do not promote a
+generation timeout, output cap, context limit, or similar mechanism to
+root cause without direct evidence.
+
+A null or missing evaluation error is an observability gap, not evidence
+for a specific client-side cause.
+
 ### AutoScientist experimental integrity
 
 For comparative, research, or leaderboard-oriented work, preserve enough
@@ -308,6 +378,15 @@ better held-out category performance or a better leaderboard score.
 Likewise, a strong local diversity or similarity metric does not by
 itself establish correctness, relevance, or downstream training quality.
 
+For held-out category/domain evaluations or leaderboard-facing
+evaluations that are not fully specified by the supported API, record
+whether the evaluation ran, which iteration it evaluated, when it ran,
+and the judged sample count when those fields are observable. Do not
+treat a missing or delayed domain evaluation as evidence of poor model
+quality. If evaluation assignment, timing, iteration selection, or sample
+count is nondeterministic, do not use that metric as the sole pass/fail
+gate for a controlled comparison; report the missingness or mismatch.
+
 ### Unofficial or empirically observed behavior
 
 Community clients and reverse-engineered endpoints can reveal useful
@@ -328,9 +407,27 @@ If an unofficial/internal endpoint is necessary:
   preserve every experimental parameter
 - fail closed when attribution is ambiguous
 
+When the SDK docstring, API reference, application UI, and observed live
+response disagree, preserve the disagreement instead of collapsing it
+into one claim. Record, when available:
+
+- SDK/package version
+- documentation URL or section
+- endpoint or SDK method
+- request parameters
+- HTTP status or exception type
+- response/error payload
+- timestamp
+- whether the observation was reproduced
+
+Treat reproducible live behavior as current operational evidence, not as
+a permanent API contract. Treat documentation as the intended supported
+contract, not proof that every deployed surface currently matches it.
+
 Historical observations such as row-count floors, concurrency caps,
-additional internal statuses, or stale-job behavior should be re-verified
-against current platform behavior before they influence automation.
+additional internal statuses, evaluation behavior, or stale-job behavior
+should be re-verified against current platform behavior before they
+influence automation.
 
 ## Long-running operations
 
