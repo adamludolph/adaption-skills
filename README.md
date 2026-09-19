@@ -66,7 +66,7 @@ Do not modify anything.
 $adaption Diagnose why this AutoScientist integration is failing.
 ```
 
-The skill treats current official Adaption documentation as authoritative when exact API behavior matters.
+The skill checks current official Adaption documentation first and preserves conflicts between documentation, SDK behavior, UI behavior, and live API evidence instead of guessing.
 
 ## Authentication
 
