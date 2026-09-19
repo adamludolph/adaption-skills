@@ -3,8 +3,8 @@ name: adaption
 description: >
   Build, debug, review, and explain software integrations with the
   Adaption API and Python SDK. Use this skill for Adaption datasets,
-  Adaptive Data, dataset preparation and augmentation, evaluation,
-  AutoScientist model training, training experiments, model selection,
+  Adaptive Data, dataset invention, dataset preparation and augmentation,
+  evaluation, AutoScientist model training, training experiments, model selection,
   experiment monitoring, checkpoint downloads, or when working with
   docs.adaptionlabs.ai. Do not trigger merely because a project uses
   generic machine learning or fine-tuning without involving Adaption.
@@ -40,6 +40,7 @@ Classify the request as one or more of:
 - review existing integration code
 - debug an integration
 - create/import/upload a dataset
+- invent a dataset from scratch
 - run Adaptive Data
 - augment or otherwise prepare a dataset
 - evaluate a dataset
@@ -111,6 +112,29 @@ initialization when consistent with current documentation.
 
 ## Choose the dataset workflow
 
+Choose among three distinct paths. Do not collapse them into one generic
+dataset pipeline.
+
+### Invent from scratch
+
+Use dataset invention when there is no source dataset and the user wants
+Adaption to generate a model-ready dataset from a description.
+
+Conceptually:
+
+    dataset description
+        -> optional estimate
+        -> Invent
+        -> wait for completion
+        -> inspect/download/evaluate as appropriate
+        -> AutoScientist
+
+An invented dataset that has completed successfully is already
+model-ready. Do not automatically run Adaptive Data on it before
+AutoScientist unless the user explicitly asks for another transformation.
+
+### Adapt existing source data
+
 Use Adaptive Data for ordinary/source data that should be prepared or
 improved before model training.
 
@@ -123,6 +147,8 @@ Conceptually:
         -> wait for completion
         -> adapted dataset
         -> evaluation/export/training
+
+### Use already training-ready data
 
 Use raw processing only when the input is intentionally already
 training-ready tabular prompt/completion data and the current API
@@ -137,6 +163,28 @@ Conceptually:
 
 Do not call Adaptive Data after creating a raw dataset unless the user
 explicitly asks to change that workflow.
+
+## Invented datasets
+
+Before an authorized Invent launch:
+
+1. verify the current `datasets.invent` request schema
+2. fetch current domain/subdomain codes with `datasets.invent_domains()`
+   when explicit taxonomy will be used; do not hard-code remembered codes
+3. use `estimate=True` when cost visibility is useful before generation
+4. keep the estimated request materially identical to the intended launch
+5. use a documented idempotency key when retries could duplicate work
+6. store the returned dataset ID immediately
+7. wait for a terminal dataset state before downstream use
+8. record the completed dataset's observed `row_count`
+
+Treat requested `rows` as a generation target, not proof of the final
+row count. For provenance, keep both the requested row count and the
+observed completed `row_count`.
+
+When the prompt alone is sufficient, do not add domains merely to make
+the request look more explicit. When domains or subdomains matter to the
+task, use only current codes returned by the API.
 
 ## Column mappings
 
@@ -214,8 +262,8 @@ provenance to reconstruct exactly what was launched.
 
 Record at submission time, when applicable:
 
-- dataset ID and observed row count
-- dataset processing/adaptation state
+- dataset ID, requested row count when relevant, and observed row count
+- dataset origin and processing/adaptation state
 - model or automatic-model-selection choice
 - `max_iterations`
 - `target_win_rate`
@@ -251,10 +299,14 @@ Do not treat these as interchangeable signals:
 - AutoScientist on-dataset or best win rate
 - held-out category/domain evaluation
 - leaderboard normalized score
+- external or local dataset metrics such as diversity, similarity, or
+  deduplication scores
 
 Before optimizing a metric, verify what population and evaluation it
 actually measures. A higher on-dataset win rate does not by itself prove
 better held-out category performance or a better leaderboard score.
+Likewise, a strong local diversity or similarity metric does not by
+itself establish correctness, relevance, or downstream training quality.
 
 ### Unofficial or empirically observed behavior
 
@@ -304,6 +356,11 @@ where available.
 
 Generating integration code does not automatically authorize unnecessary
 paid API operations.
+
+When a documented estimate mode exists for a material paid operation,
+prefer using it before an authorized launch when doing so helps the user
+understand cost without creating work. An estimate does not itself
+authorize the real launch.
 
 If the user asks to implement support but does not ask for a real
 training/adaptation run:
