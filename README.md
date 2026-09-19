@@ -10,6 +10,7 @@ Build, debug, review, and explain software integrations involving:
 
 - Adaption datasets
 - Adaptive Data
+- dataset invention from scratch
 - dataset preparation and augmentation
 - AutoScientist
 - experiment monitoring
