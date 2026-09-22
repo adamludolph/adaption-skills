@@ -1,7 +1,5 @@
 # Adaption Agent Skill
 
-[![skills.sh](https://skills.sh/b/adamludolph/adaption-skills)](https://skills.sh/adamludolph/adaption-skills)
-
 A reusable Agent Skill for building, debugging, reviewing, and explaining integrations with the [Adaption](https://docs.adaptionlabs.ai/) API and Python SDK.
 
 Works with **Codex**, **Claude Code**, and other agents that support the open Agent Skills format.
