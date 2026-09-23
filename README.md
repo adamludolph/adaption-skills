@@ -45,6 +45,8 @@ The `adaption` skill supports work involving:
 - API, SDK, UI, and observed-behavior discrepancies
 - experiment provenance and evidence handling
 
+`references/field-notes.md` collects dated, evidence-classed observations of live platform behavior: evaluation timing and noise, per-model row floors, SDK and HTTP quirks, and hyperparameter comparisons.
+
 The skill is designed to inspect the host repository first, follow existing project conventions, verify consequential API behavior against current official Adaption documentation, and avoid unnecessary remote or billable operations.
 
 ## Usage
@@ -123,7 +125,9 @@ adaption-skills/
 ├── README.md
 └── skills/
     └── adaption/
-        └── SKILL.md
+        ├── SKILL.md
+        └── references/
+            └── field-notes.md
 ```
 
 ## Design principles
