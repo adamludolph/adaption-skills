@@ -318,3 +318,11 @@ expand its scope.
 For large artifacts, prefer streaming where supported and verify download
 availability first. For AutoScientist, preserve the documented best-artifact
 semantics rather than assuming the download represents the last iteration.
+
+## Field notes
+
+For dated operational observations (run and evaluation lifecycle, evaluation
+noise, row floors, SDK and HTTP quirks, domain assignment, hyperparameter
+comparisons), read `references/field-notes.md` when diagnosing a surprising
+result or planning an experiment. Every entry there is observed behavior, not a
+documented contract; re-verify before automating on it.
