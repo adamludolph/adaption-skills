@@ -1,10 +1,13 @@
 # Field notes: observed Adaption behavior
 
 Operational observations collected while running a few hundred AutoScientist
-experiments and Adaptive Data jobs in September 2026. Every item carries an
-evidence class from `SKILL.md` and the date it was seen. None of this is a
-documented contract. Re-verify anything here before it drives automation,
-because deployed behavior changes.
+experiments and Adaptive Data jobs in September 2026. Empirical observations
+carry an evidence class from `SKILL.md` and the date they were seen; the final
+verification section records working practices derived from that experience.
+None of this is a documented contract. Re-verify anything here before it drives
+automation, because deployed behavior changes. For SDK-specific observations
+that do not identify a version, reproduce the behavior against the installed SDK
+before treating it as current.
 
 Contributed by Carson Rodrigues ([@rodriguescarson](https://github.com/rodriguescarson)).
 
@@ -15,14 +18,16 @@ Contributed by Carson Rodrigues ([@rodriguescarson](https://github.com/rodrigues
   run returns 409. Once that run is terminal, the same dataset accepts a new
   run; one dataset hosted four sequential runs. If you need parallel runs of the
   same rows, upload separate copies.
-- **Concurrent run cap of 5 per account.** *(community observation, 2026-09-15 to 2026-09-22)*
-  Launches beyond five active runs were refused or queued. Build launchers to
-  wait for a free slot instead of retrying in a loop.
+- **Observed practical concurrency around 5 active runs.** *(community observation, 2026-09-15 to 2026-09-22)*
+  Launches beyond five active runs were refused or queued in these observations.
+  Treat five as an observed operating point rather than a documented account
+  limit, and have launchers wait or back off instead of retrying in a loop.
 - **A run can report `succeeded` before its domain evaluation exists.**
   *(verified, 2026-09-22)* The held-out domain evaluation arrived 45 to 80
   minutes after the run and its job reported `succeeded`. An empty
-  `domain_eval` right after completion is "not yet", not "lost". Poll with a
-  deadline and only record a loss once the deadline passes.
+  `domain_eval` right after completion may mean "not yet"; do not immediately
+  classify it as lost. Poll with a deadline and only record a loss once the
+  deadline passes.
 - **`eval_failed` can repeat on one dataset while its neighbours pass.**
   *(community observation, 2026-09-22)* One dataset failed evaluation on all
   three iterations (training completed each time, error message null), while
@@ -37,8 +42,12 @@ Contributed by Carson Rodrigues ([@rodriguescarson](https://github.com/rodrigues
 - **Domain evaluation sample size varies per run.** *(verified, 2026-09-22)*
   Observed judged-prompt counts on the same day: 45, 47, 53, 54, 55, 60, 70, 73,
   74, 75, 76, 82, 99, 100. At n = 45 and a win rate near 0.87, the binomial
-  standard error is about 5 points. Differences smaller than that between two
-  single runs are not evidence of anything.
+  standard error for one proportion is about 5 points; comparing two independent
+  runs of similar size has still more uncertainty (about 7 points for the
+  difference if both are n = 45 near that rate). Single-run differences of a few
+  percentage points can therefore be sampling noise. Use replication or an
+  uncertainty interval before attributing a difference to the experimental
+  change.
 - **Replicates of an identical configuration spread widely.** *(verified,
   2026-09-15 to 2026-09-22)* Repeat runs on unchanged rows and settings spread
   by more than ten domain points. Budget for replication before calling a
@@ -80,9 +89,11 @@ Contributed by Carson Rodrigues ([@rodriguescarson](https://github.com/rodrigues
   metrics calls returned `429 ThrottlerException` whenever a background watcher
   was also polling, and exhausted the SDK's built-in retries. Poll every few
   minutes with a long backoff, and share one poller rather than running several.
-- **Large uploads need a longer write timeout.** *(verified, 2026-09-17)* Files
-  above about 10 MB timed out on the default `httpx` write timeout. Some networks
-  also stalled on IPv6; forcing IPv4 resolved it. Both are client-side fixes.
+- **Large uploads may need a longer write timeout.** *(community observation, 2026-09-17)* Files
+  above about 10 MB timed out on the default `httpx` write timeout in the
+  observed client/network environment. Some connections also stalled on IPv6;
+  forcing IPv4 resolved it there. Treat both as client-side diagnostics, not
+  platform requirements.
 - **`upload_file` takes `column_mapping`, not arbitrary detection flags.**
   *(verified, 2026-09-22)* A `domain_detection=` keyword raised `TypeError`. Raw
   uploads need `processing_mode="raw"` plus an explicit prompt/completion
@@ -112,13 +123,14 @@ Contributed by Carson Rodrigues ([@rodriguescarson](https://github.com/rodrigues
 
 ## Hyperparameters
 
-- **Hand-tuned adapters lost to the platform defaults every time we tried.**
+- **Hand-tuned adapters underperformed the platform-derived configuration in four comparisons.**
   *(community observation, 2026-09-16 to 2026-09-22)* Four comparisons on the same
   rows (larger LoRA rank, higher alpha, all-linear modules, two epochs) all scored
-  below the default configuration, one by about 9 domain points. The
-  best-launch-config endpoint showed our strongest runs had used the defaults
-  (rank 8, alpha 8, one epoch, learning rate 1e-4). This supports the existing
-  advice to prefer platform-derived hyperparameters.
+  below the platform-derived configuration, one by about 9 domain points. The
+  best-launch-config endpoint showed that our strongest observed runs resolved
+  to rank 8, alpha 8, one epoch, and learning rate 1e-4. Those values are
+  observations from these runs, not fixed platform defaults. This supports the
+  existing advice to prefer platform-derived hyperparameters.
 
 ## Verification habits that paid off
 
