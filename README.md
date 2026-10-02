@@ -45,9 +45,9 @@ The `adaption` skill supports work involving:
 - API, SDK, UI, and observed-behavior discrepancies
 - experiment provenance and evidence handling
 
-`references/field-notes.md` collects dated, evidence-classed observations of live platform behavior: evaluation timing and noise, per-model row floors, SDK and HTTP quirks, and hyperparameter comparisons.
+`skills/adaption/references/field-notes.md` preserves attributed September 2026 reports: evaluation timing and noise, per-model row floors, SDK and HTTP quirks, and hyperparameter comparisons. These reports are not independently reproduced by this package's documentation check. The notes also hold optional experiment guidance, unresolved documentation conflicts, and qualified October 2026 Invent research context.
 
-The skill is designed to inspect the host repository first, follow existing project conventions, verify consequential API behavior against current official Adaption documentation, and avoid unnecessary remote or billable operations.
+The loaded skill focuses on Adaption-specific workflow decisions and consequential API behavior. Ordinary engineering, authority, and verification instructions belong to the host agent's operating contract and task instructions.
 
 ## Usage
 
@@ -105,7 +105,9 @@ Codex:       ~/.agents/skills/adaption/
 Claude Code: ~/.claude/skills/adaption/
 ```
 
-Keep `skills/adaption/SKILL.md` as the canonical source rather than maintaining separate Codex and Claude copies in this repository.
+This GitHub repository is the authoring source of truth. Maintain `skills/adaption/SKILL.md` and its supporting references here; installed and loose local copies are deployment copies or historical inputs. Propose changes here before updating an installation.
+
+Copy the complete `skills/adaption/` directory, including references, from a reviewed revision. Record that source revision and the installed file hashes when deploying so drift can be compared deliberately. A project-specific installation should not become an independently maintained fork without a demonstrated project requirement.
 
 ## Authentication
 
@@ -135,8 +137,8 @@ adaption-skills/
 The skill keeps these evidence classes distinct:
 
 - documented contract
-- verified behavior
-- community observation
+- reproducible/versioned observation
+- attributed community observation
 - hypothesis
 
 It preserves conflicts between documentation, SDK behavior, UI behavior, and live API evidence instead of guessing, and it separates read-only discovery from authorization for paid or mutating operations.

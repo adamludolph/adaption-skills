@@ -1,328 +1,248 @@
 ---
 name: adaption
 description: >
-  Build, debug, review, and explain software integrations with the
-  Adaption API and Python SDK. Use this skill for Adaption datasets,
-  Adaptive Data, dataset invention, dataset preparation and augmentation,
-  evaluation, AutoScientist model training, training experiments, model selection,
-  experiment monitoring, checkpoint downloads, or when working with
-  docs.adaptionlabs.ai. Do not trigger merely because a project uses
-  generic machine learning or fine-tuning without involving Adaption.
+  Build, debug, review, or operate integrations using Adaption Labs APIs/SDK,
+  including Invent, Adaptive Data, dataset ingestion/evaluation, AutoScientist
+  training/alignment, monitoring, and exports. Use when the task explicitly involves
+  Adaption or adaptionlabs.ai; not for generic ML or fine-tuning.
 ---
 
 # Adaption Developer Integration
 
-Use this skill for Adaption-specific implementation, debugging, review, and
-experimental work.
+## Workflow router
 
-Official documentation:
+| Intent | Path |
+|---|---|
+| Generate training data without a seed dataset | Invent; choose instruction or preference output and language expansion. |
+| Transform existing examples | Adaptive Data; select mappings, output shape, recipes and controls. |
+| Add examples or language/locale variants | Augment/translate/localize; distinct from full adaptation. |
+| Preserve training-ready examples | Raw ingestion; prompt/completion or prompt/chosen/rejected mappings. |
+| Train, align, select a model or inspect a recipe | AutoScientist; processed eligible data, supported model discovery/recommendations. |
+| Discover resources, diagnose, evaluate or export | List/get/status/evaluation/download surfaces relevant to that resource. |
 
-https://docs.adaptionlabs.ai/
+## Contract, observation, and defaults
 
-## Evidence model
+Checked **2026-10-02** against public documentation. Recheck consequential calls
+against the current endpoint and installed SDK; schemas, models and defaults change.
+Distinguish **documented contract**, **reproducible/versioned observation**,
+**attributed community observation**, and **hypothesis**. Record conflicting
+method/version/request/response/time evidence; observations do not set API contracts.
+[Field notes](references/field-notes.md) hold dated reports, research and conflicts.
 
-Keep these evidence classes distinct:
+Start account discovery with list/get/status and relevant pagination; correlate
+existing dataset/run IDs before creating duplicates. Discovery does not authorize
+a launch. Estimate the exact intended request before paid generation/adaptation/
+expansion where supported; an estimate does not authorize a launch. Code review
+or implementation alone does not authorize paid/live Adaption operations.
+Imports can start processing/adaptation: use the deliberate raw/deferred path when appropriate.
+Persist returned IDs; a client timeout stops waiting, not remote work. Retrieve
+and resume the known resource before retrying creation or paying to repeat training.
 
-- **Documented contract** — current official API/SDK documentation.
-- **Verified behavior** — reproducible observation against a known API/SDK
-  version or live endpoint.
-- **Community observation** — useful diagnostic evidence, not a supported
-  contract.
-- **Hypothesis** — a proposed explanation that still requires testing.
+## Critical Invent choices
 
-Never promote a lower-confidence class into a higher one.
+Invent creates model-ready text training data from a natural-language specification,
+without source/seed rows. Use `dataset_prompt`, requested `rows`, and current
+`datasets.invent_domains()` if taxonomy is needed; do not freeze domain codes.
+Choose `training_type="instruction_dataset"` for prompt/completion or
+`"preference_pairs"` for chosen/rejected output. Translation expands languages;
+localization adds country/language variants. Estimate the same request with
+`estimate=True` before launch. Repeated `idempotency_key` returns the original
+dataset. Poll asynchronously to `succeeded`/`failed`; distinguish requested rows
+from observed `row_count`. Inspect output before export/training; do not adapt
+Invent output again automatically. Do not infer tool traces, agent trajectories
+or non-text generation from the research benchmark.
+Details: [Invent](#invent-details); [research scope](references/field-notes.md#invent-research-scope-and-results).
 
-Treat current official documentation as authoritative over examples or remembered
-constants in this skill. If official docs disagree internally, preserve the
-conflict rather than silently choosing a value. Prefer the endpoint-specific
-reference for request/schema constraints, then verify consequential differences
-against the installed SDK or live API when practical. Record what was observed,
-which version/endpoint produced it, and what remains uncertain.
+## Critical Adaptive Data choices
 
-Do not invent API methods, fields, status values, limits, model identifiers,
-training modes, domain codes, or unsupported retry behavior.
+Choose preservation (raw), transformation (adapt), expansion, or quality evaluation
+deliberately; successful ingestion does not prove adaptation or quality evaluation.
+Adaptive Data generates instruction or preference output from mapped source data.
+Chat, per-row prompt/completion, shared prompt/context and image mappings have
+different requirements. Safety controls **annotate, not filter**. Web grounding
+and Blueprint guide generation; verify length controls with prompt rephrasing.
+Language expansion can change rows/cost; omitted `language_expansion` preserves a
+previous configuration, null clears it, and an object replaces it. Multimodal
+context incurs higher pricing and currently disqualifies the dataset from
+finetuning. Raw chosen/rejected ingestion is documented, but the older raw guide
+conflicts: inspect processed shape/type before assuming alignment eligibility.
+Details: [ingestion/mappings](#ingestion-and-mappings), [controls](#adaptive-data-controls-and-expansion).
 
-For implementation, fit the host repository's existing language, dependency,
-configuration, logging, and testing conventions. Prefer the official Python SDK
-when it fits a Python project and documented REST APIs when direct HTTP is the
-project's established pattern. Use `ADAPTION_API_KEY` or the project's existing
-secret mechanism; never hard-code or expose a real key. Do not create an
-Adaption-specific framework unless the task actually requires one.
+## Critical AutoScientist choices
 
-## Choose the dataset path
+Use a processed eligible dataset; discover models and inspect recommended
+hyperparameters before overriding. Dataset `training_type` is output shape;
+run `training_method` is instruction/alignment; `hyperparams.training_type` is
+LoRA/full strategy. Alignment requires preference data; read back the resolved
+method because an ineligible request can resolve to instruction. Raw `data_format`
+is chat/instruction encoding; adapted datasets ignore it.
+Current iteration range is **1–5**. The target is an early-stop condition;
+`succeeded` can also mean the budget ended without reaching it.
+AutoScientist keys are **dataset-scoped and active-run-only**: repeating after
+termination can start a new paid run. Retrieve the known run first.
+Alignment's SFT→DPO handoff keeps one ID and can temporarily lack metrics/artifacts.
+Download the **best iteration**, which may differ from the last.
+Details: [launch](#autoscientist-launch), [diagnostics](#monitoring-and-evaluation-diagnostics),
+[provenance](#launch-provenance-and-metric-interpretation), [downloads](#downloads).
 
-Do not collapse Invent, Adaptive Data, and raw ingestion into one generic
-pipeline.
+## Invent details
 
-### Invent from scratch
+[Guide](https://docs.adaptionlabs.ai/adaptive-data/invent-a-dataset/) and
+[request reference](https://docs.adaptionlabs.ai/api/resources/datasets/methods/invent):
+taxonomy can be inferred from the prompt; explicit domain/subdomain codes disable
+inference. Use supported discovery, not a project's saved-taxonomy requirement.
+An estimate creates no dataset and incurs no charge. Instruction output uses
+enhanced prompt/completion fields; preference output adds chosen/rejected.
+Source originals are absent for generated data; inspect the actual schema.
 
-Use Invent when there is no source dataset and Adaption should generate a
-training-ready dataset from a description.
+Language expansion selects translation languages or localization country/language
+pairs and `sample_rate`. Validate supported values through current request
+validation; do not copy a remembered language-count/code list into integrations.
+Poll the returned dataset ID and record observed output, including shortfalls.
 
-Conceptually:
+## Ingestion and mappings
 
-    description
-        -> optional estimate
-        -> Invent
-        -> wait for completion
-        -> inspect/evaluate/export as needed
-        -> AutoScientist
+Use the application's existing secret mechanism; the SDK reads `ADAPTION_API_KEY`.
+[Authentication](https://docs.adaptionlabs.ai/introduction/getting-started/).
 
-A successfully completed invented dataset is already model-ready. Do not
-automatically run Adaptive Data on it before AutoScientist unless another
-transformation is intentionally requested.
+[Create reference](https://docs.adaptionlabs.ai/api/resources/datasets/methods/create):
+local uploads return presigned **upload** instructions; a source URL can import
+Hugging Face, Kaggle or Google Sheets. HF/Kaggle imports require selected files;
+Sheets can select tabs and needs the supported public-link or connected-access
+path. Source availability and supported formats differ; inspect that source's
+schema rather than treating every URL/file as interchangeable.
 
-Before an authorized Invent launch:
+The default processing mode is adapt. `defer_adaption=True` stores data awaiting
+preprocessing; the documented start route is `POST /datasets/:id/start-adaption`.
+Check SDK support before inventing a matching method name.
+For already training-ready tabular data, use `processing_mode="raw"` and explicit
+`column_mapping`: prompt plus completion **or** prompt plus chosen and rejected;
+optional context is folded into prompts. Raw imports must share one format/schema.
+Wait for processing and inspect the resulting columns and dataset type.
+Current `datasets.create` reference documents raw processing for provider imports,
+while the higher-level [creation guide](https://docs.adaptionlabs.ai/adaptive-data/create-a-dataset/)
+still describes raw as local-upload-only. Remote raw import support is
+documentation-conflicted; verify the current endpoint/SDK before relying on it.
+The [raw guide](https://docs.adaptionlabs.ai/autoscientist/run-on-non-adapted-data/)
+still says preference data requires adaptation; this conflicts with current create
+support, so do not automatically transform raw pairs or promise DPO eligibility.
 
-1. verify the current Invent request schema
-2. discover current domain/subdomain codes through the documented API when
-   taxonomy is used; do not hard-code remembered codes
-3. use estimate mode when cost visibility is useful
-4. keep the estimate materially equivalent to the intended launch
-5. use documented idempotency support where a retry could duplicate paid work
-6. record the returned dataset ID immediately
-7. wait for a terminal dataset state before downstream use
-8. record the observed completed `row_count`
+[Mapping guide](https://docs.adaptionlabs.ai/adaptive-data/select-columns):
+map original headers at ingestion; downstream mappings use the processed schema.
+Prompt/completion mapping can supply existing anchors for generation; context
+supplies per-row grounding. `universal_prompt` is shared task text and needs a
+per-row differentiator such as context or image.
+Chat preserves conversation structure and excludes prompt/completion/context/
+universal-prompt mappings; image may accompany it. Image cannot stand alone: it
+needs text framing. Supported image encodings/paths depend on the import source;
+a relative path supported by one source is not valid for every local upload.
 
-Treat requested `rows` as a generation target, not proof of the final row count.
-Preserve requested and observed counts separately. When the prompt alone is
-sufficient, do not add taxonomy merely to make the request look more explicit.
+## Adaptive Data controls and expansion
 
-### Adapt existing source data
+[Configuration guide](https://docs.adaptionlabs.ai/adaptive-data/configure-adaptive-data/):
+choose output `training_type` (instruction or preference), `recipe_specification`
+and `brand_controls` deliberately. Recipes cover deduplication, prompt rephrasing
+and reasoning traces. `job_specification.max_rows` limits processed input;
+sampling/deduplication/language expansion can change output counts. The guide
+describes length via rewritten prompts, so check rephrasing when length has no
+effect; chat disables prompt rephrasing. `brand_controls.length` offers
+minimal/concise/detailed/extensive; Blueprint is freeform system guidance, not a
+column mapping. `hallucination_mitigation` enables web-search grounding for text;
+it is not proof of factual correctness.
 
-Use Adaptive Data when ordinary/source data should be prepared, augmented, or
-improved before training.
+[Adapt reference](https://docs.adaptionlabs.ai/api/resources/datasets/methods/adapt):
+non-empty `safety_categories` enables analysis across all five categories,
+not only the requested subset. Results annotate `prompt_safety_issues` and
+`response_safety_issues`; rows remain. Preference preparation generates
+chosen/rejected from the mapped prompt and optional completion, unlike raw
+ingestion of existing pairs.
 
-Conceptually:
+[Adapt SDK reference](https://docs.adaptionlabs.ai/api/python/resources/datasets/methods/adapt):
+`language_expansion` omission preserves saved settings, explicit null clears,
+and an object replaces them. Translation uses languages; localization uses
+country/language pairs; required `sample_rate` is 0.01–1. Credits depend on
+expanded output; include the effective expansion in both estimate and launch.
+Image mapping is automatically added to context. Multimodal context disqualifies
+finetuning and attracts higher per-output-row pricing; inspect the exact estimate
+and pricing flags rather than using text-only cost assumptions.
 
-    source data
-        -> dataset ingestion
-        -> source processing
-        -> Adaptive Data
-        -> wait for completion
-        -> adapted dataset
-        -> evaluation/export/training
+[Expansion guide](https://docs.adaptionlabs.ai/adaptive-data/expand-data/):
+augment/translate/localize create a new dataset while preserving the source;
+in-adapt language expansion occurs within that adaptation instead.
+Augment adds curated domain/general examples; it excludes image datasets.
+These methods support estimates and keys; wait on the new ID before export/train.
+AutoScientist augmentation adds training rows without writing a new dataset.
+[Quality evaluation](https://docs.adaptionlabs.ai/adaptive-data/evaluate-dataset-quality/)
+is a distinct outcome, not a consequence proven by ingestion.
 
-Do not infer that successful ingestion means adaptation or its separate quality
-evaluation has also completed.
+## Dataset state and counts
 
-### Use already training-ready data
-
-Use raw processing only when the input is intentionally training-ready tabular
-data and the current raw-ingestion requirements are satisfied. Current
-documentation requires explicit prompt/completion mapping for raw ingestion;
-verify the current schema before implementing.
-
-Conceptually:
-
-    training-ready tabular prompt/completion data
-        -> raw ingestion
-        -> wait for processing
-        -> AutoScientist
-
-Do not run Adaptive Data after raw ingestion unless the objective is to transform
-that dataset rather than preserve the supplied training examples.
-
-## Dataset state, counts, and mappings
-
-Keep source/requested row counts separate from the API's completed `row_count`.
-Processing, filtering, deduplication, partial completion, or other platform
-behavior can make them differ.
-
-When a minimum-row error appears inconsistent with a source file:
-
-- inspect the dataset's current API state
-- inspect its completed `row_count`
-- check whether processing/deduplication changed usable rows
-- verify the current minimum requirement
-- do not classify the issue as a UI bug without evidence
-- do not pad or mutate data merely to bypass the error before the counted
-  population is understood
-
-Backend/API state, application UI state, preview state, and export availability
-can diverge. A dataset that exists or trains successfully through the API does
-not prove every UI or export surface has synchronized. Report each surface
-separately and use the relevant API resource state for API decisions.
-
-Validate column mappings against the workflow actually being used. For raw
-datasets, provide the mappings required by the current API. For adapted
-datasets, do not guess generated column names. When AutoScientist can infer a
-mapping and explicit control is unnecessary, prefer inference over invented
-column names.
-
-When prior account resources may matter, use documented read-only discovery
-before asking for IDs or creating duplicates. Paginate list operations when a
-complete relevant result set is required, correlate runs to dataset IDs, and
-distinguish current account state from repository-local assumptions. Read-only
-discovery does not authorize adaptation, training, cancellation, mutation, or
-downloads.
+Track requested/source/processed/observed populations separately. An unexpected
+minimum-row error requires current model/operation requirements and the actual
+counted population before padding rows or blaming the UI. Deduplication,
+expansion and partial output can affect usable rows.
+API state, UI previews, quality evaluation and export availability can differ;
+inspect the surface relevant to the operation. Read schemas rather than assuming
+invented/adapted columns match source headers; use supported inference when
+explicit mappings are unnecessary.
 
 ## AutoScientist launch
 
-Before creating a run:
+[Create reference](https://docs.adaptionlabs.ai/api/resources/autoscientist/methods/create):
+discover via `autoscientist.list_models()`, prefer automatic model selection and
+derived hyperparameters unless overrides serve the task.
+[Recommend hyperparameters](https://docs.adaptionlabs.ai/api/resources/autoscientist/methods/recommend_hyperparams)
+inspects the recipe without launching. Record effective augmentation counts.
+Run `training_method` selects instruction/alignment; raw `data_format` controls
+encoding; `hyperparams.training_type` selects lora/full. Confirm resolved values.
 
-1. confirm the dataset exists and required processing is complete
-2. verify the current create-run schema
-3. use only currently supported models and parameters
-4. capture the exact launch configuration and returned experiment ID
+[Running guide](https://docs.adaptionlabs.ai/autoscientist/running-autoscientist/):
+`target_win_rate` stops early; raising it does not guarantee better quality.
+Compare best score with the target and budget. Threshold boundary acceptance has
+an open documentation discrepancy in the field notes.
+Keep AutoScientist's terminal-key behavior distinct from Invent's repeat-key
+behavior; persist the resource ID and retrieve it before retrying creation.
 
-Prefer automatic model selection unless a supported model override serves a
-specific experimental objective. Prefer platform-derived hyperparameters unless
-there is evidence-based reason to override them. Use the documented
-recommend-hyperparameters operation when useful to inspect derived values
-without launching training.
+## Monitoring and evaluation diagnostics
 
-Treat `target_win_rate` as an early-stop threshold, not an optimization target.
-A higher threshold can permit more of the allowed search budget; it does not
-tell AutoScientist to "try harder" and does not guarantee the threshold will be
-reached. Verify the current documented `max_iterations` range and
-`target_win_rate` behavior for each consequential launch. Increase search
-budget only when the experiment objective and cost envelope justify it.
+Public run states are pending/running/succeeded/failed/cancelled. Resume a known
+run after a client wait timeout. Alignment spans SFT/DPO under the same run ID;
+during handoff it can remain running without metrics or a downloadable artifact.
+[Results guide](https://docs.adaptionlabs.ai/autoscientist/interpreting-results/).
 
-Do not assume the final iteration is the best iteration. The AutoScientist loop
-can revise the training recipe between iterations, so later results can
-regress. Use documented best-result semantics. The downloadable model artifact
-is the retained best trained artifact, not necessarily the final iteration.
+Keep public status separate from internal/iteration/UI labels such as reported
+`eval_failed`. Record run/dataset/iteration IDs, training evidence, each status,
+timestamps and exact errors including null. Missing errors leave cause unresolved.
+Inspect later recovery and whether a supported evaluation-only retry exists
+before paying to repeat training; do not invent an endpoint. More training is a
+reported workaround, not evidence that it repairs evaluation or improves quality.
+Relevant hypotheses and dated diagnostics live in [field notes](references/field-notes.md).
 
-Use documented idempotency behavior precisely. For AutoScientist, verify its
-current scope and lifetime before relying on a retry key; do not assume a key
-permanently deduplicates launches after a run reaches a terminal state.
+## Launch provenance and metric interpretation
 
-## Evaluation and iteration diagnostics
+Record endpoint/SDK version, time and experiment label; dataset ID/origin/state and row
+counts; submitted and resolved model, mappings, shape, encoding, method/strategy,
+iteration budget, target, overrides and augmentation; key, returned run ID and
+best-result configuration. These distinctions identify which Adaption operation
+and artifact an experiment actually measured.
 
-Separate top-level AutoScientist run state from iteration-level, UI-only,
-internal, or community-client states. An observed iteration status such as
-`eval_failed` does not by itself establish failed training or a failed top-level
-run.
+Separate Adaptive Data quality, application classification, AutoScientist win rate,
+held-out/domain evaluation, leaderboard scores and local diversity/similarity.
+Record population and iteration; delayed/missing evaluation is unresolved, not a
+poor score. Optional comparison methods are in [field notes](references/field-notes.md).
+Isolate necessary unsupported/community-client diagnostics, check response shape
+and run/dataset attribution; internal fields are not supported API requirements.
 
-For an evaluation failure, preserve:
+## Downloads
 
-- run ID and iteration ID when available
-- dataset ID
-- whether training itself completed
-- top-level run status and iteration status separately
-- exact error/error-message fields, including null
-- relevant timestamps
+[Dataset downloads](https://docs.adaptionlabs.ai/api/resources/datasets/methods/download)
+stream processed rows: full output for ready datasets, partial successful rows for
+failed datasets. Label partial recovery; it does not establish completed processing
+or training eligibility. CSV/JSON/JSONL are text; Parquet is a compressed tar of
+shards. Check resource/SDK labels rather than forcing one universal status enum.
 
-Before paying to repeat training, inspect whether a later permitted iteration
-recovered and whether the current supported API exposes an evaluation-only
-retry. Additional iterations can sometimes provide another opportunity for an
-intermittent evaluation to succeed, but that is resilience, not a fix for the
-underlying problem and not evidence that more iterations improve model quality.
-
-A null or absent evaluation error is an observability gap, not evidence for a
-specific root cause. Do not promote a timeout, output cap, context limit,
-generation failure, client bug, or similar explanation without direct evidence.
-
-When one dataset repeatedly fails while comparable datasets do not, form narrow,
-testable hypotheses around observable differences such as prompt length, target
-length, format, mapping, or dataset structure. Change one suspected factor at a
-time when practical.
-
-## Experimental integrity and metrics
-
-For comparative, research, or leaderboard-oriented work, record enough launch
-provenance at submission time to reconstruct what actually ran. When applicable,
-capture:
-
-- SDK/package version or REST endpoint
-- dataset ID, origin, processing/adaptation state, requested rows, and observed
-  rows
-- training format or data format when explicitly selected
-- model choice or automatic selection
-- column mapping
-- `max_iterations` and `target_win_rate`
-- training strategy/type and explicit hyperparameter overrides
-- domain/general augmentation row counts
-- idempotency key
-- returned run/experiment ID
-- timestamp and human-readable experiment label
-
-Do not reconstruct a launch condition from memory when it could have been
-recorded at submission.
-
-For controlled comparisons, prefer the same underlying dataset/seed, change one
-material variable at a time when practical, keep search budgets comparable,
-replicate important findings when budget permits, and retain failed, cancelled,
-and incomplete runs in the experiment record. One noisy run is exploratory
-evidence, not a strong replicated conclusion.
-
-Do not treat these signals as interchangeable:
-
-- Adaptive Data quality evaluation
-- application semantic/category classification
-- AutoScientist on-dataset or best win rate
-- held-out category/domain evaluation
-- leaderboard normalized score
-- external/local metrics such as diversity, similarity, or deduplication
-
-Before optimizing a metric, establish what population and evaluation it
-actually measures. Higher on-dataset win rate does not itself prove better
-held-out performance or leaderboard score. Strong local diversity/similarity
-does not establish correctness, relevance, or downstream training quality.
-
-For held-out/domain or leaderboard-facing evaluations that are not fully
-specified by the supported API, record whether the evaluation ran, which
-iteration it evaluated, when it ran, and judged sample count when observable.
-Do not interpret missing or delayed domain evaluation as poor model quality. If
-assignment, timing, iteration selection, or sample count is nondeterministic,
-do not use that metric as the sole pass/fail gate for a controlled comparison.
-
-## Supported API versus observed behavior
-
-Prefer the official SDK and documented REST API whenever they expose the needed
-capability.
-
-Community clients, UI behavior, and reverse-engineered/internal endpoints can be
-useful evidence, but they are not supported contracts. If an unofficial path is
-necessary:
-
-- isolate it from the supported client path
-- verify the live response shape before relying on it
-- do not hard-code undocumented limits or statuses as permanent rules
-- verify that a returned job/run is actually new before attributing it to an
-  experimental condition
-- record launch conditions locally when the remote record may omit them
-- fail closed when attribution is ambiguous
-
-When SDK docs, endpoint docs, UI state, and live responses disagree, preserve
-the disagreement. Record the relevant version, endpoint/method, request,
-HTTP status or exception, response/error payload, timestamp, and whether the
-observation reproduced.
-
-Treat reproducible live behavior as current operational evidence, not a
-permanent API contract. Treat documentation as the intended supported contract,
-not proof that every deployed surface currently behaves identically. Re-verify
-historical observations such as row floors, concurrency limits, internal
-statuses, stale-job behavior, or evaluation quirks before they influence
-automation.
-
-## Long-running, paid, and remote operations
-
-Treat documented dataset processing, adaptation, evaluation, and AutoScientist
-training as asynchronous. Store returned IDs and launch configuration, monitor
-the relevant resource to a terminal state, expose useful errors, and use
-reasonable timeout/resume behavior without silently duplicating creation.
-
-Generating or reviewing integration code does not authorize paid or mutating
-remote work. When a documented estimate mode exists for a material paid
-operation, use it when useful for cost visibility; an estimate does not
-authorize the real launch.
-
-If the request is implementation-only, validate locally or with mocks where
-appropriate and do not launch paid training/adaptation merely as a test. If the
-user clearly authorizes actual execution and the environment has required
-credentials/tools, execute only the requested workflow and do not silently
-expand its scope.
-
-For large artifacts, prefer streaming where supported and verify download
-availability first. For AutoScientist, preserve the documented best-artifact
-semantics rather than assuming the download represents the last iteration.
-
-## Field notes
-
-For dated operational observations (run and evaluation lifecycle, evaluation
-noise, row floors, SDK and HTTP quirks, domain assignment, hyperparameter
-comparisons), read `references/field-notes.md` when diagnosing a surprising
-result or planning an experiment. Every entry there is observed behavior, not a
-documented contract; re-verify before automating on it.
+[Model downloads](https://docs.adaptionlabs.ai/autoscientist/download-the-model/)
+stream a compressed tar from the best iteration. Confirm successful completion
+and `download_available`; alignment's artifact belongs to the DPO stage.
+Neither download endpoint should be treated as a presigned-URL response.
+Stream large artifacts rather than loading them into memory.
